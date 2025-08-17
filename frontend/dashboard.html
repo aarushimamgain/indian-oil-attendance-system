@@ -1,0 +1,269 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Indian Oil Attendance Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
+  <style>
+    .calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  margin-top: 2rem;
+}
+
+.calendar-day {
+  border: 1px solid #ccc;
+  padding: 0.75rem;
+  text-align: center;
+  border-radius: 6px;
+  font-weight: bold;
+  background-color: #eee;
+}
+
+.present {
+  background-color: #b6fcb6; /* green */
+  color: #064d06;
+}
+
+.absent {
+  background-color: #ffc1c1; /* red */
+  color: #7a0000;
+}
+
+.out-of-range {
+  background-color: #f2f2f2; /* light grey */
+  color: #999;
+}
+
+    body {
+      background: linear-gradient(to bottom right, #f5f5f5, #ffffff);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #ff6f00;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .logo {
+      width: 100px;
+      margin-bottom: 1rem;
+    }
+
+    .container-box {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(197, 192, 192, 0.1);
+      margin-top: 2rem;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.8rem;
+      padding: 1rem;
+      color: #888;
+      margin-top: 4rem;
+    }
+
+    .summary {
+      white-space: pre-line;
+      margin-top: 2rem;
+      background: #f9f9f9;
+      padding: 1rem;
+      border-left: 4px solid #ff6f00;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img class="logo" src="https://iocl.com/assets/images/Logo.png" alt="IOCL Logo" />
+    <h1>Indian Oil Attendance Portal</h1>
+  </header>
+
+  <main class="container container-box">
+    <h2>Check Your Attendance</h2>
+    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+      <button id="tableViewBtn" type="button">View by Date Range</button>
+      <button id="calendarViewBtn" type="button">View Monthly Calendar</button>
+    </div>
+    <form id="dateForm">
+      <label>Start Date: <input type="date" id="startDate" required></label>
+      <label>End Date: <input type="date" id="endDate" required></label>
+      <button type="submit">Get Attendance</button>
+    </form>
+    <div id="tableView" style="display:none; margin-top:2rem;">
+      <table id="attendanceTable" style="width:100%; color: black;">
+        <thead>
+          <tr><th>Date</th><th>Shift Name</th><th>Status</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="calendarView" style="display:none;">
+      <div style="margin:1rem 0;">
+        <label>Month: <input type="month" id="monthPicker" required></label>
+        <button id="getMonthBtn" type="button">Get Monthly Attendance</button>
+      </div>
+      <div class="calendar" id="calendarGrid"></div>
+       <div style="margin-top: 1rem;">
+    <strong>Legend:</strong>
+    <div><span style="background:#b6fcb6; padding:2px 10px; border-radius:4px;">Present</span></div>
+    <div><span style="background:#ffc1c1; padding:2px 10px; border-radius:4px;">Absent</span></div>
+    <div><span style="background:#fff3cd; padding:2px 10px; border-radius:4px;">Pending Approval</span></div>
+    <div><span style="background:#f8d7da; padding:2px 10px; border-radius:4px;">Unapproved Break</span></div>
+  </div>
+    </div>
+    <div class="summary" id="attendanceResult"></div>
+
+  </main>
+
+  <footer>
+    &copy; 2025 Indian Oil Corporation Ltd. All rights reserved.
+  </footer>
+
+  <script>
+    const currentEmployee = JSON.parse(localStorage.getItem("currentEmployee"));
+    if (!currentEmployee || !currentEmployee.emp_no) {
+      alert("Session expired. Please log in again.");
+      window.location.href = "index.html";
+    }
+    const shiftName = localStorage.getItem("shift") || currentEmployee.shift;
+
+    // Toggle views
+    const tableViewBtn = document.getElementById("tableViewBtn");
+    const calendarViewBtn = document.getElementById("calendarViewBtn");
+    const tableView = document.getElementById("tableView");
+    const calendarView = document.getElementById("calendarView");
+    const dateForm = document.getElementById("dateForm");
+    tableViewBtn.onclick = () => {
+      tableView.style.display = "block";
+      calendarView.style.display = "none";
+      dateForm.style.display = "block";
+      document.getElementById("attendanceResult").style.display = "none";
+    };
+    calendarViewBtn.onclick = () => {
+      tableView.style.display = "none";
+      calendarView.style.display = "block";
+      dateForm.style.display = "none";
+      document.getElementById("attendanceResult").style.display = "none";
+    };
+    // Default to table view
+    tableViewBtn.click();
+
+    // Table view logic
+    document.getElementById("dateForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+      const tableBody = document.querySelector("#attendanceTable tbody");
+      tableBody.innerHTML = "";
+      try {
+        const res = await fetch("http://localhost:5000/api/calculate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employee_number: currentEmployee.emp_no,
+            shift_name: shiftName,
+            startDate,
+            endDate
+          })
+        });
+        const data = await res.json();
+        if (res.status === 200 && data.data) {
+          data.data.forEach(row => {
+            let statusColor = "black";
+            if (row.status === "Absent") statusColor = "red";
+            else if (row.status === "Present") statusColor = "green";
+            else if (row.status === "Half Day") statusColor = "#888";
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td>${row.date}</td><td>${row.shift_name}</td><td style='color:${statusColor};font-weight:bold;'>${row.status}</td>`;
+            tableBody.appendChild(tr);
+          });
+          tableView.style.display = "block";
+        } else {
+          tableBody.innerHTML = `<tr><td colspan='3'>No data found</td></tr>`;
+        }
+      } catch (err) {
+        tableBody.innerHTML = `<tr><td colspan='3'>Error fetching data</td></tr>`;
+      }
+    });
+
+    // Calendar view logic
+document.getElementById("getMonthBtn").onclick = async function () {
+  const monthInput = document.getElementById("monthPicker").value;
+  if (!monthInput) return;
+  const [year, month] = monthInput.split("-");
+  const calendar = document.getElementById("calendarGrid");
+  calendar.innerHTML = "";
+  try {
+    const res = await fetch("http://localhost:5000/api/monthly-attendance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        employee_number: currentEmployee.emp_no,
+        shift_name: shiftName,
+        month: parseInt(month),
+        year: parseInt(year)
+      })
+    });
+    const data = await res.json();
+    console.log(data); // ✅ This is the line you asked about
+
+    if (res.status === 200 && data.data) {
+      const jsMonth = parseInt(month) - 1; // Convert to 0-indexed (0=Jan)
+const paddedMonth = String(jsMonth + 1).padStart(2, "0"); // For formatting
+const daysInMonth = new Date(year, jsMonth + 1, 0).getDate(); // Get last day
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${paddedMonth}-${String(d).padStart(2, "0")}`;
+        const entry = data.data.find(row => {
+ return row.date === dateStr;
+
+});
+
+        const dayDiv = document.createElement("div");
+        dayDiv.classList.add("calendar-day");
+        dayDiv.textContent = d;
+       if (entry) {
+  if (entry.status === "Present") {
+    dayDiv.classList.add("present");
+  } else if (entry.status === "Absent") {
+    dayDiv.classList.add("absent");
+  } else if (entry.status === "Half Day") {
+    dayDiv.classList.add("out-of-range");
+  } else if (entry.status === "Pending Approval") {
+    dayDiv.style.backgroundColor = "#fff3cd";  // Yellow
+    dayDiv.style.color = "#856404";
+  } else if (entry.status === "Absent (Unapproved Break)") {
+    dayDiv.style.backgroundColor = "#f8d7da";  // Red-tinted
+    dayDiv.style.color = "#721c24";
+  }
+} else {
+  dayDiv.classList.add("absent");
+}
+
+        calendar.appendChild(dayDiv);
+      }
+    } else {
+      calendar.innerHTML = "<div>No data found</div>";
+    }
+  } catch (err) {
+    calendar.innerHTML = "<div>Error fetching data</div>";
+  }
+};
+
+  </script>
+</body>
+</html>
+
+
+
+
+
