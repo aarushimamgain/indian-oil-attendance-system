@@ -91,6 +91,8 @@
   </footer>
 
   <script>
+    window.__API_BASE_URL__ = "https://indian-oil-attendance-system.onrender.com";
+
     const getApiUrl = (path) => {
       const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
       const baseUrl = isLocal
