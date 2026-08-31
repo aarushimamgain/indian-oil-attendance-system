@@ -91,6 +91,15 @@
   </footer>
 
   <script>
+    const getApiUrl = (path) => {
+      const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+      const baseUrl = isLocal
+        ? "http://localhost:5000"
+        : (window.__API_BASE_URL__ || "");
+
+      return baseUrl ? `${baseUrl}${path}` : path;
+    };
+
     document.getElementById("loginForm").addEventListener("submit", async function (e) {
       e.preventDefault();
 
@@ -99,7 +108,7 @@
       const errorMessage = document.getElementById("errorMessage");
 
       try {
-        const res = await fetch("http://localhost:5000/api/login", {
+        const res = await fetch(getApiUrl("/api/login"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ emp_no, shift_name })
@@ -108,7 +117,6 @@
         const data = await res.json();
 
         if (res.status === 200) {
-          // Use shift from DB if not provided
           let finalShift = shift_name || data.user.shiftname;
           data.user.shift = finalShift;
           localStorage.setItem("currentEmployee", JSON.stringify(data.user));

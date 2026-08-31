@@ -129,10 +129,19 @@
   </footer>
 
   <script>
+    const getApiUrl = (path) => {
+      const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+      const baseUrl = isLocal
+        ? "http://localhost:5000"
+        : (window.__API_BASE_URL__ || "");
+
+      return baseUrl ? `${baseUrl}${path}` : path;
+    };
+
     const currentEmployee = JSON.parse(localStorage.getItem("currentEmployee"));
     if (!currentEmployee || !currentEmployee.emp_no) {
       alert("Session expired. Please log in again.");
-      window.location.href = "index.html";
+      window.location.href = "indexx.html";
     }
     const shiftName = localStorage.getItem("shift") || currentEmployee.shift;
 
@@ -168,7 +177,7 @@
       const tableBody = document.querySelector("#attendanceTable tbody");
       tableBody.innerHTML = "";
       try {
-        const res = await fetch("http://localhost:5000/api/calculate", {
+        const res = await fetch(getApiUrl("/api/calculate"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -207,7 +216,7 @@ document.getElementById("getMonthBtn").onclick = async function () {
   const calendar = document.getElementById("calendarGrid");
   calendar.innerHTML = "";
   try {
-    const res = await fetch("http://localhost:5000/api/monthly-attendance", {
+    const res = await fetch(getApiUrl("/api/monthly-attendance"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -239,10 +248,10 @@ document.getElementById("getMonthBtn").onclick = async function () {
           } else if (entry.status === "Half Day") {
             dayDiv.classList.add("out-of-range");
           } else if (entry.status === "Pending Approval") {
-            dayDiv.style.backgroundColor = "#fff3cd";  // Yellow
+            dayDiv.style.backgroundColor = "#fff3cd";
             dayDiv.style.color = "#856404";
           } else if (entry.status === "Absent (Unapproved Break)") {
-            dayDiv.style.backgroundColor = "#f8d7da";  // Red-tinted
+            dayDiv.style.backgroundColor = "#f8d7da";
             dayDiv.style.color = "#721c24";
           }
         } else {
