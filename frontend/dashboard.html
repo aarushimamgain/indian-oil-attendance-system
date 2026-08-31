@@ -154,7 +154,10 @@
       dateForm.style.display = "none";
       document.getElementById("attendanceResult").style.display = "none";
     };
-    // Default to table view
+    // Default to table view and set default month picker
+    document.getElementById("monthPicker").value = "2026-06";
+    document.getElementById("startDate").value = "2026-06-01";
+    document.getElementById("endDate").value = "2026-06-30";
     tableViewBtn.click();
 
     // Table view logic
@@ -182,6 +185,7 @@
             if (row.status === "Absent") statusColor = "red";
             else if (row.status === "Present") statusColor = "green";
             else if (row.status === "Half Day") statusColor = "#888";
+            else if (row.status === "Pending Approval") statusColor = "#856404";
             const tr = document.createElement("tr");
             tr.innerHTML = `<td>${row.date}</td><td>${row.shift_name}</td><td style='color:${statusColor};font-weight:bold;'>${row.status}</td>`;
             tableBody.appendChild(tr);
@@ -214,40 +218,36 @@ document.getElementById("getMonthBtn").onclick = async function () {
       })
     });
     const data = await res.json();
-    console.log(data); // ✅ This is the line you asked about
+    console.log(data);
 
     if (res.status === 200 && data.data) {
-      const jsMonth = parseInt(month) - 1; // Convert to 0-indexed (0=Jan)
-const paddedMonth = String(jsMonth + 1).padStart(2, "0"); // For formatting
-const daysInMonth = new Date(year, jsMonth + 1, 0).getDate(); // Get last day
+      const paddedMonth = String(month).padStart(2, "0");
+      const daysInMonth = new Date(year, parseInt(month), 0).getDate();
 
       for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${year}-${paddedMonth}-${String(d).padStart(2, "0")}`;
-        const entry = data.data.find(row => {
- return row.date === dateStr;
-
-});
+        const entry = data.data.find(row => row.date === dateStr);
 
         const dayDiv = document.createElement("div");
         dayDiv.classList.add("calendar-day");
         dayDiv.textContent = d;
-       if (entry) {
-  if (entry.status === "Present") {
-    dayDiv.classList.add("present");
-  } else if (entry.status === "Absent") {
-    dayDiv.classList.add("absent");
-  } else if (entry.status === "Half Day") {
-    dayDiv.classList.add("out-of-range");
-  } else if (entry.status === "Pending Approval") {
-    dayDiv.style.backgroundColor = "#fff3cd";  // Yellow
-    dayDiv.style.color = "#856404";
-  } else if (entry.status === "Absent (Unapproved Break)") {
-    dayDiv.style.backgroundColor = "#f8d7da";  // Red-tinted
-    dayDiv.style.color = "#721c24";
-  }
-} else {
-  dayDiv.classList.add("absent");
-}
+        if (entry) {
+          if (entry.status === "Present") {
+            dayDiv.classList.add("present");
+          } else if (entry.status === "Absent") {
+            dayDiv.classList.add("absent");
+          } else if (entry.status === "Half Day") {
+            dayDiv.classList.add("out-of-range");
+          } else if (entry.status === "Pending Approval") {
+            dayDiv.style.backgroundColor = "#fff3cd";  // Yellow
+            dayDiv.style.color = "#856404";
+          } else if (entry.status === "Absent (Unapproved Break)") {
+            dayDiv.style.backgroundColor = "#f8d7da";  // Red-tinted
+            dayDiv.style.color = "#721c24";
+          }
+        } else {
+          dayDiv.classList.add("absent");
+        }
 
         calendar.appendChild(dayDiv);
       }

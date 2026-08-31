@@ -63,16 +63,35 @@ app.post("/api/calculate", async (req, res) => {
 
   try {
     const { data, error } = await supabase
-  .from("calendar_view")
-  .select("date, shift_name, status")
-  .eq("emp_no", employee_number)
-  .gte("date", startDate)
-  .lte("date", endDate)
-  .order("date", { ascending: true }); // ✅ .order should be chained on the same line
-
+      .from("calendar_view")
+      .select("date, shift_name, status")
+      .eq("emp_no", employee_number)
+      .gte("date", startDate)
+      .lte("date", endDate)
+      .order("date", { ascending: true });
 
     if (error) {
       return res.status(500).json({ message: "Error fetching from calendar_view." });
+    }
+
+    const { data: arData } = await supabase
+      .from("approval_requests")
+      .select("date, status, reason")
+      .eq("emp_no", String(employee_number))
+      .gte("date", startDate)
+      .lte("date", endDate);
+
+    if (data && arData) {
+      data.forEach(row => {
+        const ar = arData.find(a => a.date === row.date);
+        if (ar) {
+          if (ar.status === "rejected" || ar.reason === "Unapproved Break") {
+            row.status = "Absent (Unapproved Break)";
+          } else if (ar.status === null || ar.status === "pending") {
+            row.status = "Pending Approval";
+          }
+        }
+      });
     }
 
     return res.status(200).json({ data });
@@ -87,15 +106,12 @@ app.post("/api/monthly-attendance", async (req, res) => {
   try {
     const { employee_number, year, month } = req.body;
 
+    const paddedMonth = String(month).padStart(2, "0");
+    const startDate = `${year}-${paddedMonth}-01`;
+    const daysInMonth = new Date(year, parseInt(month), 0).getDate();
+    const endDate = `${year}-${paddedMonth}-${String(daysInMonth).padStart(2, "0")}`;
 
-const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
-
-    // ✅ Correct way to get last day of month
-   const endObj = new Date(year, parseInt(month) + 1, 1); // 1st of next month
-endObj.setDate(endObj.getDate() - 1);                  // last day of current month (e.g. 31st July)
-const endDate = endObj.toISOString().split("T")[0];
-
-console.log("Start:", startDate, "End:", endDate);
+    console.log("Start:", startDate, "End:", endDate);
 
     const { data, error } = await supabase
       .from("calendar_view")
@@ -106,6 +122,26 @@ console.log("Start:", startDate, "End:", endDate);
 
     if (error) {
       return res.status(500).json({ message: "Error fetching from calendar_view." });
+    }
+
+    const { data: arData } = await supabase
+      .from("approval_requests")
+      .select("date, status, reason")
+      .eq("emp_no", String(employee_number))
+      .gte("date", startDate)
+      .lte("date", endDate);
+
+    if (data && arData) {
+      data.forEach(row => {
+        const ar = arData.find(a => a.date === row.date);
+        if (ar) {
+          if (ar.status === "rejected" || ar.reason === "Unapproved Break") {
+            row.status = "Absent (Unapproved Break)";
+          } else if (ar.status === null || ar.status === "pending") {
+            row.status = "Pending Approval";
+          }
+        }
+      });
     }
 
     return res.status(200).json({ data });
